@@ -64,6 +64,9 @@ header.top{
 .tools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
 .btn{font:inherit; font-size:13px; color:var(--text); background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px}
 .btn:hover{background:var(--surface2)}
+.btn:disabled{opacity:.6; cursor:progress}
+.lido{font-size:12px; color:var(--muted); white-space:nowrap}
+.lido.ok{color:var(--good)} .lido.falha{color:var(--critical)}
 .seg{display:inline-flex; background:var(--surface); border:1px solid var(--border2); border-radius:8px; overflow:hidden}
 .seg button{font:inherit; font-size:13px; border:0; background:transparent; color:var(--muted); padding:7px 12px; cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--black); color:var(--surface); font-weight:500}
@@ -220,6 +223,7 @@ footer .links a{margin-right:12px}
       </div>
       <button class="btn" id="btn-tema">◐ Tema</button>
       <button class="btn" id="btn-refresh">↻ Atualizar</button>
+      <span class="lido" id="lido" aria-live="polite"></span>
       <div class="dtr" id="dtr">
         <label>De <input type="date" id="dt-de" aria-label="Data inicial"></label>
         <label>Até <input type="date" id="dt-ate" aria-label="Data final"></label>
@@ -1036,6 +1040,17 @@ function limitesDeData(){
 }
 
 /* ======================= BOOT ======================= */
+/* O botão relê a planilha na hora (passa por cima do cache do Worker). Sem retorno
+   visual ninguém sabe se funcionou — os números só mudam quando a planilha muda —
+   então o botão trava enquanto lê e diz a que horas a leitura saiu. */
+function marcarLeitura(estado, msg){
+  const btn = $('#btn-refresh'), lido = $('#lido');
+  btn.disabled = estado === 'lendo';
+  btn.textContent = estado === 'lendo' ? '↻ Atualizando…' : '↻ Atualizar';
+  lido.className = 'lido' + (estado === 'ok' ? ' ok' : estado === 'falha' ? ' falha' : '');
+  lido.textContent = msg || '';
+}
+
 async function boot(fresh){
   if (/SEU-WORKER/.test(WORKER_URL) && !new URLSearchParams(location.search).get('fonte')){
     $('#loading').classList.add('hidden'); $('#erro').classList.remove('hidden');
@@ -1044,6 +1059,7 @@ async function boot(fresh){
   }
   if (!BRUTO) $('#loading').classList.remove('hidden');
   $('#erro').classList.add('hidden');
+  marcarLeitura('lendo', 'lendo a planilha…');
   try {
     const r = await fetch(urlFonte(fresh), { cache:'no-store' });
     const d = await r.json().catch(() => ({ error: 'resposta não é JSON (HTTP ' + r.status + ')' }));
@@ -1054,7 +1070,10 @@ async function boot(fresh){
     $('#loading').classList.add('hidden');
     $('#app').classList.remove('hidden');
     render();
+    const hora = new Date(d.gerado_em || Date.now()).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    marcarLeitura(fresh ? 'ok' : '', (fresh ? '✓ planilha lida às ' : 'dados de ') + hora);
   } catch(e){
+    marcarLeitura('falha', '✕ não consegui atualizar');
     $('#loading').classList.add('hidden');
     $('#erro').classList.remove('hidden');
     $('#erro').textContent = 'Não consegui carregar: ' + e.message;
