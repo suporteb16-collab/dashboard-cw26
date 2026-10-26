@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classical Week 26 | Maestro Thiago Santos</title>
+<meta name="description" content="Dashboard do lançamento Classical Week 26 (CW26) do Maestro Thiago Santos — captação, mídia, orçamento por fase e vendas.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+/* ---------------------------------------------------------------
+   Paleta clássica B16 (a mesma do dashboard AAEMCWEB / Mundial Cromo).
+   2 slots categóricos: amarelo = investido, azul = lead pago / dinheiro.
+   Cinza (--muted) = o que não é pago. O amarelo fica abaixo de 3:1 no
+   claro de propósito — é a cor da marca — e por isso toda barra leva
+   rótulo direto: a leitura nunca depende só da cor.
+   --------------------------------------------------------------- */
+:root{
+  color-scheme: light;
+  --plane:#f4f4f2; --surface:#fff; --surface2:#f9f9f7;
+  --border:#e5e5e0; --border2:#d0d0c8;
+  --yellow:#d4a800; --yellow-bg:#fff9e0;
+  --black:#111; --text:#1a1a1a; --muted:#777;
+  --grid:#e5e5e0; --baseline:#d0d0c8;
+  --cat1:#d4a800; --cat2:#3b82f6; --neutro:#b9b9b1;
+  --good:#16a34a; --warn:#e08a00; --critical:#d03b3b;
+  --shadow:0 1px 2px rgba(17,17,17,.04), 0 2px 8px rgba(17,17,17,.05);
+}
+html.dark{
+  color-scheme: dark;
+  --plane:#0d0d0d; --surface:#1a1a1a; --surface2:#222;
+  --border:#2a2a2a; --border2:#333;
+  --yellow:#d4a800; --yellow-bg:rgba(212,168,0,.08);
+  --black:#f0f0f0; --text:#e8e8e8; --muted:#888;
+  --grid:#2a2a2a; --baseline:#333;
+  --cat1:#b08c00; --cat2:#3b82f6; --neutro:#55554f;
+  --good:#22c55e; --warn:#fab219; --critical:#e05555;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--plane); color:var(--text);
+  font-family:"DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+.wrap{max-width:1220px; margin:0 auto; padding:20px 16px 64px}
+
+header.top{
+  display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; justify-content:space-between;
+  padding:18px 0 16px; border-bottom:1px solid var(--border); margin-bottom:20px;
+}
+.brand-row{display:flex; align-items:center; gap:13px}
+.logo{width:44px; height:44px; border-radius:50%; object-fit:cover; display:block; flex:0 0 44px}
+.brand .kicker{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:500; margin-bottom:4px}
+.brand h1{font-family:"Bebas Neue","DM Sans",sans-serif; font-weight:400; font-size:clamp(30px,4.6vw,44px); line-height:1; letter-spacing:.012em; margin:0; color:var(--black)}
+.brand .sub{color:var(--muted); font-size:13.5px; margin-top:6px}
+.brand .sub b{color:var(--text); font-weight:500}
+.fase-chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color:var(--black); background:var(--yellow-bg); border:1px solid var(--cat1); border-radius:999px; padding:1px 10px; margin-left:4px; white-space:nowrap}
+.tools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.btn{font:inherit; font-size:13px; color:var(--text); background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px}
+.btn:hover{background:var(--surface2)}
+.seg{display:inline-flex; background:var(--surface); border:1px solid var(--border2); border-radius:8px; overflow:hidden}
+.seg button{font:inherit; font-size:13px; border:0; background:transparent; color:var(--muted); padding:7px 12px; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--black); color:var(--surface); font-weight:500}
+.dtr{display:none; flex-basis:100%; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+.dtr.on{display:flex}
+.dtr label{display:inline-flex; align-items:center; gap:6px}
+.dtr input[type="date"]{font:inherit; font-size:13px; color:var(--text); background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:6px 9px}
+.dtr .aviso{color:var(--warn)}
+
+.note{display:flex; gap:10px; align-items:flex-start; border:1px solid var(--border); border-left:3px solid var(--muted); background:var(--surface); border-radius:8px; padding:11px 14px; margin-bottom:12px; font-size:13.5px; color:var(--muted); box-shadow:var(--shadow)}
+.note b{color:var(--text); font-weight:500}
+.note .ic{flex:none}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--critical)}
+.note.info{border-left-color:var(--cat2)}
+.note.pending{border-left-color:var(--warn)}
+.note code{font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 5px}
+
+section{margin:30px 0 0}
+.sec-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap}
+h2{font-family:"Bebas Neue","DM Sans",sans-serif; font-weight:400; font-size:23px; letter-spacing:.03em; margin:0; color:var(--black)}
+.sec-head .hint{font-size:12.5px; color:var(--muted)}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(172px,1fr)); gap:12px}
+.kpi{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:15px 16px 14px; box-shadow:var(--shadow); min-width:0}
+.kpi .lab{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:500; margin-bottom:7px; display:block}
+.kpi .val{font-size:29px; font-weight:700; line-height:1.05; letter-spacing:-.02em; color:var(--black)}
+.kpi .val.sm{font-size:22px}
+.kpi .foot{font-size:12.5px; color:var(--muted); margin-top:6px}
+.kpi.hero{background:var(--black); border-color:var(--black)}
+.kpi.hero .lab{color:rgba(255,255,255,.6)}
+.kpi.hero .val{color:#fff; font-size:38px}
+.kpi.hero .foot{color:rgba(255,255,255,.75)}
+html.dark .kpi.hero{background:var(--surface2); border-color:var(--border2)}
+html.dark .kpi.hero .lab{color:var(--muted)}
+html.dark .kpi.hero .val{color:var(--black)}
+html.dark .kpi.hero .foot{color:var(--muted)}
+.kpi.empty .val{color:var(--muted); font-weight:500}
+.flag{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; border-radius:999px; padding:2px 9px; margin-top:8px; border:1px solid currentColor}
+.flag:empty{display:none}
+.flag.crit{color:var(--critical)} .flag.warn{color:var(--warn)} .flag.good{color:var(--good)}
+.kpi.hero .flag{background:rgba(255,255,255,.10)}
+
+.grid{display:grid; gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px 14px; box-shadow:var(--shadow); min-width:0}
+.card h3{font-size:14px; font-weight:500; margin:0 0 3px; color:var(--black)}
+.card .cap{font-size:12.5px; color:var(--muted); margin:0 0 14px}
+.plot{position:relative; height:250px}
+.plot.tall{height:320px}
+.plot.short{height:200px}
+
+.leg{display:flex; flex-wrap:wrap; gap:14px; margin:12px 0 0; font-size:12.5px; color:var(--muted)}
+.leg span{display:inline-flex; align-items:center; gap:6px}
+.leg i{width:11px; height:11px; border-radius:3px; display:inline-block; flex:none}
+.leg i.linha{height:0; border-top:2px dashed var(--muted); border-radius:0; width:16px}
+
+/* Orçamento por fase: a barra é o gasto, o traço é onde o gasto deveria estar hoje
+   se a verba fosse distribuída por igual entre os dias da fase. */
+.fase .topo{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap}
+.fase .nome{font-family:"Bebas Neue","DM Sans",sans-serif; font-size:22px; letter-spacing:.03em; color:var(--black)}
+.fase .per{font-size:12.5px; color:var(--muted)}
+.fase .nums{display:flex; gap:18px; flex-wrap:wrap; margin:10px 0 10px; font-size:13px; color:var(--muted)}
+.fase .nums b{display:block; font-size:19px; color:var(--black); font-weight:700; letter-spacing:-.01em}
+.trilho{position:relative; height:12px; background:var(--surface2); border:1px solid var(--border); border-radius:999px; overflow:visible}
+.trilho .gasto{position:absolute; left:0; top:0; bottom:0; background:var(--cat1); border-radius:999px; max-width:100%}
+.trilho .gasto.estouro{background:var(--critical)}
+.trilho .marca{position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--black); border-radius:2px}
+.fase .rodape{font-size:12.5px; color:var(--muted); margin-top:10px}
+.fase .rodape b{color:var(--text); font-weight:500}
+.sem-verba{font-size:12.5px; color:var(--muted); margin-top:12px}
+
+/* Funil em trapézio (padrão B16): a magnitude está na LARGURA, não na cor. O texto é
+   #111 literal porque o amarelo é o mesmo nos dois temas. A última faixa usa #2563eb,
+   fundo o bastante para texto branco passar em 4,5:1. */
+.funil{display:flex; flex-direction:column; align-items:center; margin-top:4px}
+.ftrap{background:var(--yellow); border-radius:4px; display:flex; align-items:center; justify-content:space-between;
+       gap:14px; padding:0 20px; height:60px; margin:0 auto; min-width:250px; max-width:100%;
+       clip-path:polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%)}
+.ftrap.fim{background:#2563eb}
+.ft-left{display:flex; flex-direction:column; min-width:0}
+.ft-name{font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(17,17,17,.62); white-space:nowrap}
+.ft-val{font-family:"Bebas Neue","DM Sans",sans-serif; font-size:29px; line-height:1; color:#111; letter-spacing:.01em}
+.ft-right{text-align:right; white-space:nowrap}
+.ft-cost{font-family:"Bebas Neue","DM Sans",sans-serif; font-size:23px; line-height:1; color:#111}
+.ft-cost-lbl{font-size:10px; color:rgba(17,17,17,.62); margin-top:3px}
+.ftrap.fim .ft-name, .ftrap.fim .ft-cost-lbl{color:rgba(255,255,255,.75)}
+.ftrap.fim .ft-val, .ftrap.fim .ft-cost{color:#fff}
+.fc{display:flex; flex-direction:column; align-items:center; margin:3px auto}
+.fc-line{width:2px; height:11px; background:var(--border2)}
+.fc-tag{background:var(--surface2); border:1px solid var(--border2); color:var(--text); font-size:10.5px;
+        font-weight:500; padding:3px 11px; border-radius:20px; white-space:nowrap}
+@media (max-width:520px){
+  .ftrap{height:52px; padding:0 13px; gap:8px}
+  .ft-val{font-size:23px} .ft-cost{font-size:18px}
+  .ft-cost-lbl,.ft-name{font-size:9px}
+}
+
+/* público: dois blocos lado a lado */
+.pub{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr)); gap:12px}
+.pub .bloco{border:1px solid var(--border); border-radius:9px; padding:13px 14px; background:var(--surface2)}
+.pub .bloco .t{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.pub .bloco .cpl{font-size:27px; font-weight:700; color:var(--black); letter-spacing:-.02em; line-height:1.1; margin:6px 0 2px}
+.pub .bloco .linha{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); padding:3px 0; border-top:1px solid var(--border)}
+.pub .bloco .linha b{color:var(--text); font-weight:500; font-variant-numeric:tabular-nums}
+
+.tw{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--surface); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:720px}
+th,td{padding:9px 13px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; vertical-align:middle}
+th{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:500; background:var(--surface2); position:sticky; top:0}
+td.n{text-align:right; font-variant-numeric:tabular-nums}
+th.n{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface2)}
+td.wrap-ok{white-space:normal; min-width:210px}
+.cri{display:flex; align-items:center; gap:10px}
+.thumb{width:40px; height:40px; border-radius:6px; object-fit:cover; background:var(--surface2); border:1px solid var(--border); flex:none}
+.pill{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:500; border-radius:999px; padding:2px 9px; border:1px solid var(--border2)}
+.pill.good{color:var(--good)} .pill.wait{color:var(--warn)} .pill.ref{color:var(--critical)} .pill.mut{color:var(--muted)}
+
+#loading,#erro{padding:38px 0; text-align:center; color:var(--muted); font-size:14px}
+#erro{color:var(--critical)}
+.hidden{display:none !important}
+footer{margin-top:44px; padding-top:16px; border-top:1px solid var(--border); font-size:12.5px; color:var(--muted); display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between}
+footer .links a{margin-right:12px}
+@media (max-width:640px){ .plot{height:225px} .kpi .val{font-size:25px} .kpi.hero .val{font-size:32px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="brand-row">
+        <img class="logo" src="data:image/png;base64,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" alt="Agência B16" width="44" height="44">
+        <div>
+          <div class="kicker">Agência B16 · Maestro Thiago Santos</div>
+          <h1>Classical Week 26</h1>
+        </div>
+      </div>
+      <div class="sub">
+        Tag <b>CW26</b> · conta <b>CA - Bebendo o Concerto</b>
+        · principal <b>Combo de todos os produtos (menos Confraria)</b>
+        <span class="fase-chip" id="fase-chip"></span>
+      </div>
+    </div>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Período">
+        <button data-range="all" aria-pressed="true">Tudo</button>
+        <button data-range="7" aria-pressed="false">7 dias</button>
+        <button data-range="1" aria-pressed="false">Hoje</button>
+        <button data-range="custom" aria-pressed="false">Período</button>
+      </div>
+      <button class="btn" id="btn-tema">◐ Tema</button>
+      <button class="btn" id="btn-refresh">↻ Atualizar</button>
+      <div class="dtr" id="dtr">
+        <label>De <input type="date" id="dt-de" aria-label="Data inicial"></label>
+        <label>Até <input type="date" id="dt-ate" aria-label="Data final"></label>
+        <button class="btn" id="dt-tudo">Máximo</button>
+        <span class="aviso hidden" id="dt-aviso">datas invertidas — troquei a ordem</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="banners"></div>
+  <div id="loading">Carregando a planilha do lançamento…</div>
+  <div id="erro" class="hidden"></div>
+
+  <main id="app" class="hidden">
+
+    <section>
+      <div class="sec-head"><h2>Captação</h2><span class="hint" id="janela-txt"></span></div>
+      <div class="kpis">
+        <div class="kpi hero">
+          <span class="lab">CPL · lead pago único</span>
+          <div class="val" id="k-cpl">—</div>
+          <div class="foot" id="k-cpl-foot">—</div>
+        </div>
+        <div class="kpi"><span class="lab">Investimento</span><div class="val" id="k-inv">—</div><div class="foot" id="k-inv-foot">—</div></div>
+        <div class="kpi"><span class="lab">Leads únicos</span><div class="val" id="k-leads">—</div><div class="foot" id="k-leads-foot">—</div></div>
+        <div class="kpi"><span class="lab">Leads pagos</span><div class="val" id="k-pagos">—</div><div class="foot" id="k-pagos-foot">—</div></div>
+        <div class="kpi"><span class="lab">Orgânico + WhatsApp</span><div class="val" id="k-org">—</div><div class="foot" id="k-org-foot">—</div></div>
+        <div class="kpi"><span class="lab">CPL por cadastro</span><div class="val" id="k-cplcad">—</div><div class="foot" id="k-cplcad-foot">—</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Orçamento por fase</h2><span class="hint">acumulado da fase — não segue o filtro de período</span></div>
+      <div class="grid g2" id="fases-box"></div>
+      <div class="sem-verba" id="fases-sem-verba"></div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Eficiência de mídia</h2><span class="hint">Meta Ads · campanhas [CW26]</span></div>
+      <div class="kpis">
+        <div class="kpi"><span class="lab">CPM</span><div class="val sm" id="k-cpm">—</div><div class="foot" id="k-cpm-foot">—</div></div>
+        <div class="kpi"><span class="lab">CTR (link)</span><div class="val sm" id="k-ctr">—</div><div class="foot" id="k-ctr-foot">—</div></div>
+        <div class="kpi"><span class="lab">CPC</span><div class="val sm" id="k-cpc">—</div><div class="foot" id="k-cpc-foot">—</div></div>
+        <div class="kpi"><span class="lab">Conversão da página</span><div class="val sm" id="k-conv">—</div><div class="foot" id="k-conv-foot">—</div></div>
+        <div class="kpi"><span class="lab">Custo por lead · pixel</span><div class="val sm" id="k-cplpx">—</div><div class="foot" id="k-cplpx-foot">—</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Funil e evolução</h2></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Do anúncio ao lead</h3>
+          <p class="cap">Impressões, cliques e lead do pixel vêm da Meta; a última etapa é o formulário da
+          página (aba <i>leads</i>), contando cada pessoa uma vez. À direita, o custo da etapa.</p>
+          <div id="funil-box"></div>
+        </div>
+        <div class="card">
+          <h3>Investimento por dia</h3>
+          <p class="cap">Gasto nas campanhas [CW26]. A linha tracejada é a verba planejada por dia
+          (meta da fase ÷ dias da fase).</p>
+          <div class="plot"><canvas id="c-gasto"></canvas></div>
+          <div class="leg"><span><i style="background:var(--cat1)"></i>Investido</span><span><i class="linha"></i>Ritmo planejado</span></div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card">
+          <h3>Leads novos por dia</h3>
+          <p class="cap">Cada pessoa conta no dia do primeiro cadastro.</p>
+          <div class="plot"><canvas id="c-leads"></canvas></div>
+          <div class="leg"><span><i style="background:var(--cat2)"></i>Pagos (frio + quente)</span><span><i style="background:var(--neutro)"></i>Orgânico, WhatsApp e outros</span></div>
+        </div>
+        <div class="card">
+          <h3>CPL por dia</h3>
+          <p class="cap">Gasto do dia ÷ leads pagos novos do dia. Dia sem lead registrado (ou ainda
+          incompleto na aba de leads) fica em branco — não é CPL zero.</p>
+          <div class="plot"><canvas id="c-cpl"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Público, criativos e conjuntos</h2><span class="hint">gasto da Meta × lead do formulário, pela UTM</span></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Frio × quente</h3>
+          <p class="cap">Investimento pela tag [FRIO]/[QUENTE] da campanha; leads pelo <code>utm_source</code>.</p>
+          <div class="pub" id="pub-box"></div>
+        </div>
+        <div class="card">
+          <h3>CPL por criativo</h3>
+          <p class="cap">Só criativos com investimento. Ordenado do mais barato ao mais caro.</p>
+          <div class="plot short"><canvas id="c-criativo"></canvas></div>
+        </div>
+      </div>
+      <div class="tw" style="margin-top:14px">
+        <table id="tab-criativo">
+          <thead><tr><th>Criativo</th><th class="n">Investimento</th><th class="n">Impressões</th><th class="n">CTR</th><th class="n">CPC</th><th class="n">Leads pixel</th><th class="n">Leads únicos</th><th class="n">CPL</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="tw" style="margin-top:14px">
+        <table id="tab-conjunto">
+          <thead><tr><th>Conjunto</th><th>Público</th><th class="n">Investimento</th><th class="n">Impressões</th><th class="n">CTR</th><th class="n">Leads pixel</th><th class="n">Leads únicos</th><th class="n">CPL</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>De onde vêm os leads</h2></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Origem</h3>
+          <p class="cap">Pessoas únicas pelo <code>utm_source</code> do primeiro cadastro.</p>
+          <div class="plot short"><canvas id="c-origem"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Posicionamento dos leads pagos</h3>
+          <p class="cap">Pelo <code>utm_term</code> — onde o anúncio foi visto.</p>
+          <div class="plot short"><canvas id="c-posic"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Vendas</h2><span class="hint" id="vendas-hint"></span></div>
+      <div id="vendas-box"></div>
+    </section>
+
+    <footer>
+      <span>Agência B16 · Business Intelligence — Henrique Cardoso</span>
+      <span class="links">
+        <a href="https://escoladoouvido.com/classical-week/" target="_blank" rel="noopener">Página de captura ↗</a>
+        <a href="https://escoladoouvido.com/classical-week-secreta/" target="_blank" rel="noopener">Página de vendas ↗</a>
+      </span>
+      <span id="rodape"></span>
+    </footer>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+/* ======================= CONFIG ======================= */
+/* URL do Cloudflare Worker (worker.js desta pasta). Troque depois do deploy. A
+   planilha, a service account e a chave do HMAC ficam nos secrets do Worker —
+   nunca aqui: este arquivo é público. */
+const WORKER_URL = 'https://cw26-dados.henrscard.workers.dev';
+
+const TAG_CW = /\[\s*CW26\s*\]/i;                 // filtro de campanha na Meta
+const INICIO = '2026-10-13';                      // 1º cadastro na página (vendas antes disso não são do CW26)
+/* Fases e datas do briefing do BI. A META de cada fase vem da aba `planejamento`
+   (é a fonte); o valor daqui só vale se a aba não trouxer a fase.
+   A ordem é a do casamento: tag mais específica primeiro — uma campanha de
+   lembrete não pode cair na captação por também ter [LEADS] no nome. */
+const FASES = [
+  { id:'lembrete', nome:'Lembrete',      tags:['LEMBRETE'],            ini:'2026-11-05', fim:'2026-11-14', meta:500,  ordem:3 },
+  { id:'rmkt',     nome:'Remarketing',   tags:['RMKT','REMARKETING'],  ini:null, fim:null, meta:0, ordem:4 },
+  { id:'flash',    nome:'Flash Opening', tags:['FLASH'],               ini:null, fim:null, meta:0, ordem:5 },
+  { id:'aquec',    nome:'Aquecimento',   tags:['AQUECIMENTO','DIST'],  ini:null, fim:null, meta:0, ordem:1 },
+  { id:'capt',     nome:'Captação',      tags:['LEADS','CAPT'],        ini:'2026-10-17', fim:'2026-11-08', meta:1500, ordem:2 },
+];
+/* Venda do CW26. O produto ainda não existe na Kiwify (26/10): o carrinho abre
+   depois do evento. Em 2025 o CW foi vendido como PLANO "Classical Week 2025" do
+   produto Confraria — por isso o teste olha produto E plano. Conferir o nome
+   quando o carrinho abrir. */
+const VENDA_CW = /classical\s*week\s*(20)?26|\bcw\s*26\b/i;
+const UTM_CW   = /^cw(11)?26/i;                   // utm_campaign do lançamento (os leads chegam com cw1126)
+/* De onde sai a UTM do lead. 'pagina' = URL da página no momento do envio (coluna
+   Referrer); 'campos' = campos ocultos do formulário. Os campos perdem atribuição —
+   o conjunto "00 - Lista de compradores geral" gasta e aparece em 24 leads pelo
+   Referrer e em nenhum pelos campos; o WhatsApp (wpp1) cai de 53 para 14. Lead sem
+   UTM na URL usa os campos. A planilha (big_numbers) conta pelos campos. */
+const ATRIBUICAO = 'pagina';
+const TESTE_ORIGEM = /teste/i;                    // cadastro de teste do n8n/QA
+const MACRO = /\{\{|\}\}/;                        // macro da Meta que não interpolou
+
+/* ======================= UTIL ======================= */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const brl = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+const brlCurto = v => Math.abs(v) >= 1000
+  ? 'R$ ' + (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + 'k' : brl(v);
+const num = v => (v||0).toLocaleString('pt-BR');
+const pct = (a,b) => b ? (a/b*100).toFixed(0) + '%' : '—';
+/* CTR e conversão vivem abaixo de 10%: inteiro juntaria 1,2% e 1,8% no mesmo "1%" */
+const pctFino = (a,b) => { if(!b) return '—'; const v = a/b*100;
+  return (v < 10 ? v.toFixed(1) : v.toFixed(0)).replace('.',',') + '%'; };
+const div = (a,b) => b ? a/b : null;
+const nOrDash = (v, fmt) => v == null ? '—' : fmt(v);
+const dataBR = iso => { if(!iso) return '—'; const p = String(iso).slice(0,10).split('-'); return p.length===3 ? p[2]+'/'+p[1] : iso; };
+const dataBRano = iso => { if(!iso) return '—'; const p = String(iso).slice(0,10).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso; };
+const horaBR = iso => String(iso||'').slice(11,16);
+/* YYYY-MM-DD no fuso local — `toISOString()` converte para UTC e troca o dia */
+const isoLocal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const somaDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return isoLocal(d); };
+const difDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const soma = (arr, f) => arr.reduce((s,o) => s + (Number(f(o))||0), 0);
+const hoje = () => isoLocal(new Date());
+
+function encurtar(s, n=36){
+  s = String(s);
+  if (s.length <= n) return s;
+  const cab = Math.ceil((n-1)*0.55);
+  return s.slice(0,cab) + '…' + s.slice(-(n-1-cab));
+}
+function agrupar(arr, fn){
+  const m = new Map();
+  arr.forEach(o => { const k = fn(o) ?? '(sem atribuição)'; if(!m.has(k)) m.set(k,[]); m.get(k).push(o); });
+  return m;
+}
+
+/* Chave de cruzamento Meta × UTM. Mesmas armadilhas do CNP: o Meta anexa " – Cópia"
+   ao duplicar um anúncio e a UTM continua com o nome herdado; o formulário grava a
+   barra escapada ("FEED\/REELS"); e os conjuntos ADV+ duplicados ganham sufixo
+   " - 12", " - 09" que a UTM não traz. */
+const chave = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+  .replace(/\\\//g,'/').replace(/[–—]/g,'-')
+  .replace(/(\s*-\s*copia|\s*\(campanha principal\))+\s*$/i,'')
+  .replace(/\s+/g,' ').trim().toLowerCase();
+const chaveConj = s => chave(s).replace(/\s+-\s+\d{1,2}$/,'');
+
+/* ======================= FONTE ======================= */
+/* Para testar fora do ar: http://localhost:8000/?fonte=amostra.json. Só vale em
+   localhost — no endereço público ninguém troca a fonte por um link. */
+function urlFonte(fresh){
+  const p = new URLSearchParams(location.search);
+  const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if (local && p.get('fonte')) return p.get('fonte');
+  return WORKER_URL + (fresh ? '/?fresh=1' : '/');
+}
+
+/* ======================= MODELO ======================= */
+const canalDe = o => { o = String(o||'').trim().toLowerCase();
+  return o === 'frio' || o === 'quente' ? o : /^wpp|whats/.test(o) ? 'whatsapp' : !o ? 'organico' : 'outros'; };
+const ROT_CANAL = { frio:'Frio (Meta)', quente:'Quente (Meta)', whatsapp:'WhatsApp', organico:'Orgânico / sem UTM', outros:'Outros' };
+const ehPago = c => c === 'frio' || c === 'quente';
+const publicoDe = c => /\[\s*QUENTE\s*\]/i.test(c||'') ? 'quente' : /\[\s*FRIO\s*\]/i.test(c||'') ? 'frio' : '(outro)';
+function faseDe(campanha){
+  for (const f of FASES) if (f.tags.some(t => new RegExp('\\[\\s*' + t + '\\s*\\]', 'i').test(campanha||''))) return f.id;
+  return 'capt';   // campanha [CW26] sem tag de fase: o lançamento só tem captação no ar
+}
+
+let BRUTO = null;
+let MIDIA = [], CADASTROS = [], NOVOS = [], PEDIDOS = [], METAS = null;
+let N_TESTE = 0, FORA_TAG = 0, PESSOA_DE = () => null;
+
+/* Pessoa = e-mail OU telefone (os dois chegam como HMAC do Worker). Union-find:
+   quem errou o e-mail num cadastro e acertou no outro ("gmail.con"), mas usou o
+   mesmo telefone, continua sendo uma pessoa só. */
+function unirPessoas(linhas){
+  const pai = new Map();
+  const add = k => { if (!pai.has(k)) pai.set(k, k); };
+  const acha = k => { while (pai.get(k) !== k){ pai.set(k, pai.get(pai.get(k))); k = pai.get(k); } return k; };
+  linhas.forEach((l, i) => {
+    const ks = [l.p_email && 'e:'+l.p_email, l.p_fone && 'f:'+l.p_fone].filter(Boolean);
+    if (!ks.length) ks.push('l:'+i);
+    ks.forEach(add);
+    ks.slice(1).forEach(k => { const a = acha(ks[0]), b = acha(k); if (a !== b) pai.set(b, a); });
+    l._k = ks[0];
+  });
+  linhas.forEach(l => { l.pid = acha(l._k); });
+  return (email, fone) => {
+    for (const k of [email && 'e:'+email, fone && 'f:'+fone]) if (k && pai.has(k)) return acha(k);
+    return null;
+  };
+}
+
+function preparar(d){
+  const abas = d.abas || {};
+
+  /* ---- mídia ---- */
+  const meta = abas.meta_ads || [];
+  MIDIA = meta.filter(m => TAG_CW.test(m.campanha||'') && m.dia).map(m => ({
+    ...m, dia: m.dia.slice(0,10), fase: faseDe(m.campanha), publico: publicoDe(m.campanha) }));
+  FORA_TAG = meta.length - MIDIA.length;
+
+  /* ---- fases: meta da aba planejamento manda ---- */
+  (abas.planejamento || []).forEach(p => {
+    const tag = String(p.tag||'').replace(/[\[\]]/g,'').trim().toUpperCase();
+    const f = FASES.find(x => x.tags.includes(tag));
+    if (f && p.meta != null) f.meta = p.meta;
+  });
+
+  /* ---- leads ---- */
+  const leads = (abas.leads || []).map(l => {
+    const daPagina = ATRIBUICAO === 'pagina' && l.ref_source;
+    const u = daPagina
+      ? { origem:l.ref_source, conjunto:l.ref_medium, campanha:l.ref_campaign, criativo:l.ref_content, posicionamento:l.ref_term }
+      : { origem:l.origem, conjunto:l.conjunto, campanha:l.campanha, criativo:l.criativo, posicionamento:l.posicionamento };
+    return { ...l, ...u, canal_campos: canalDe(l.origem), dia: (l.criado_em||'').slice(0,10), canal: canalDe(u.origem) };
+  });
+  const teste = l => [l.origem, l.campanha, l.ref_source, l.ref_campaign].some(v => TESTE_ORIGEM.test(v||''))
+                  || /qa_automatizado/i.test((l.conjunto||'') + (l.ref_medium||''));
+  N_TESTE = leads.filter(teste).length;
+  CADASTROS = leads.filter(l => !teste(l) && l.dia).sort((a,b) => a.criado_em < b.criado_em ? -1 : 1);
+  PESSOA_DE = unirPessoas(CADASTROS);
+  /* o lead conta uma vez, no primeiro cadastro, com a origem dele (primeiro toque) */
+  const primeiro = new Map();
+  CADASTROS.forEach(l => { if (!primeiro.has(l.pid)) primeiro.set(l.pid, l); });
+  NOVOS = [...primeiro.values()];
+
+  /* ---- vendas ---- */
+  /* A aba é o log de webhook da Kiwify do Maestro inteiro: um pedido aparece uma vez
+     por evento (pix gerado, recusado, pago, estornado). Consolido por pedido; estorno
+     ganha de pago, pago ganha do resto. */
+  const vendas = (abas.vendas || []).filter(v => (v.criado_em||'') >= INICIO
+    && (VENDA_CW.test(v.produto||'') || VENDA_CW.test(v.plano||'') || UTM_CW.test(v.utm_campaign||'')));
+  const ped = new Map();
+  vendas.forEach(v => {
+    if (!v.order_ref) return;
+    const k = v.order_ref + '|' + (v.produto||'');
+    const p = ped.get(k) || { ...v, estados: new Set(), fat_pago: 0 };
+    p.estados.add(String(v.status||'').toLowerCase());
+    if (String(v.status).toLowerCase() === 'paid' && v.faturamento) p.fat_pago = v.faturamento;
+    if (v.criado_em < p.criado_em) p.criado_em = v.criado_em;
+    ped.set(k, p);
+  });
+  PEDIDOS = [...ped.values()].map(p => {
+    const e = [...p.estados];
+    const final = e.some(s => /refund|charge/.test(s)) ? 'estorno' : e.includes('paid') ? 'pago'
+                : e.includes('waiting_payment') ? 'aguardando' : 'recusado';
+    return { ...p, dia: p.criado_em.slice(0,10), final, lead: !!PESSOA_DE(p.p_email, p.p_fone) };
+  });
+
+  /* metas_vendas vem com 1/1/1 de marcador enquanto o BI não preenche */
+  const mv = (abas.metas_vendas || [])[0];
+  METAS = mv && ((mv.vendas||0) > 1 || (mv.faturamento||0) > 1) ? mv : null;
+}
+
+/* Se a mídia anda à frente da aba de leads, o dia do último cadastro está pela metade
+   (a aba parou no meio dele). O último dia completo é o anterior. */
+function ultimoDiaCompleto(){
+  const ultMidia = MIDIA.map(m => m.dia).sort().pop();
+  const ultLead = CADASTROS.length ? CADASTROS[CADASTROS.length-1].dia : null;
+  return ultMidia && ultLead && ultMidia > ultLead ? somaDias(ultLead, -1) : null;
+}
+
+/* ======================= CHART.JS ======================= */
+const escuro = () => document.documentElement.classList.contains('dark');
+const graficos = {};
+function desenhar(id, cfg){
+  if (graficos[id]) graficos[id].destroy();
+  const el = document.getElementById(id); if (!el) return;
+  graficos[id] = new Chart(el.getContext('2d'), cfg);
+}
+/* Rótulo direto em toda barra. `total:true` = um rótulo só, no topo da pilha.
+   Com coluna estreita demais (muitos dias no celular) o rótulo sai — o tooltip fica. */
+const rotulos = {
+  id:'rotulos',
+  afterDatasetsDraw(ch, _a, opts){
+    if (!opts || opts.off) return;
+    const fmt = opts.fmt || (v => v);
+    const horiz = ch.options.indexAxis === 'y';
+    const n = (ch.data.labels||[]).length;
+    if (!horiz && n && ch.chartArea.width / n < 30) return;
+    const ctx = ch.ctx; ctx.save();
+    ctx.font = '600 11px "DM Sans", system-ui, sans-serif';
+    ctx.fillStyle = css('--muted');
+    if (opts.total){
+      const barras = ch.data.datasets.map((d,i) => i).filter(i => !ch.getDatasetMeta(i).hidden && !ch.data.datasets[i].semRotulo);
+      for (let i = 0; i < n; i++){
+        const tot = barras.reduce((s, di) => s + (Number(ch.data.datasets[di].data[i])||0), 0);
+        if (!tot) continue;
+        const topo = barras.map(di => ch.getDatasetMeta(di).data[i]).filter(Boolean).reduce((a, el) => (!a || el.y < a.y) ? el : a, null);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(fmt(tot), topo.x, topo.y - 4);
+      }
+    } else {
+      ch.data.datasets.forEach((ds, di) => {
+        if (ds.semRotulo) return;
+        const meta = ch.getDatasetMeta(di); if (meta.hidden) return;
+        meta.data.forEach((el, i) => {
+          const v = ds.data[i]; if (v == null || v === 0) return;
+          ctx.textAlign = horiz ? 'left' : 'center';
+          ctx.textBaseline = horiz ? 'middle' : 'bottom';
+          ctx.fillText(fmt(v, di), el.x + (horiz ? 6 : 0), el.y + (horiz ? 0 : -4));
+        });
+      });
+    }
+    ctx.restore();
+  }
+};
+Chart.register(rotulos);
+
+function eixos({horiz=false, moeda=false, pad=1.2, empilhado=false} = {}){
+  const tick = { color: css('--muted'), font:{ family:'"DM Sans", system-ui, sans-serif', size:11 } };
+  const val = {
+    grid:{ color: css('--grid'), drawTicks:false }, border:{ color: css('--baseline') },
+    ticks:{ ...tick, maxRotation:0, precision: moeda ? undefined : 0, callback: v => moeda ? brlCurto(v) : v },
+    grace: Math.round((pad-1)*100) + '%', beginAtZero:true, stacked: empilhado,
+  };
+  const cat = { grid:{display:false}, border:{ color: css('--baseline') }, stacked: empilhado,
+                ticks:{ ...tick, autoSkip: !horiz, maxRotation:0, crossAlign: horiz ? 'far' : undefined } };
+  return horiz ? { x:val, y:cat } : { x:cat, y:val };
+}
+function tooltip(fmt){
+  return { enabled:true, backgroundColor: escuro() ? '#333' : '#111', titleColor:'#fff', bodyColor:'#fff',
+    borderWidth:0, padding:10, cornerRadius:7, displayColors:true, boxWidth:9, boxHeight:9,
+    titleFont:{ family:'"DM Sans", system-ui, sans-serif', size:12.5, weight:'500' },
+    bodyFont:{ family:'"DM Sans", system-ui, sans-serif', size:12.5 }, callbacks:{ label:fmt } };
+}
+const BASE = { responsive:true, maintainAspectRatio:false, animation:{duration:250}, layout:{ padding:{ right:14, top:4 } },
+               interaction:{ mode:'index', intersect:false } };
+const barra = { borderRadius:4, borderSkipped:false, borderWidth:2, maxBarThickness:38 };
+
+/* ======================= FASES ======================= */
+/* Ritmo = gasto ÷ o que a fase deveria ter gasto até hoje se a verba fosse distribuída
+   por igual entre os dias. A projeção usa a média dos últimos 7 dias FECHADOS — o dia
+   de hoje ainda está em andamento na Meta e puxaria a média para baixo. */
+function estadoFase(f){
+  const gasto = soma(MIDIA.filter(m => m.fase === f.id), m => m.gasto);
+  const r = { f, gasto, temDatas: !!(f.ini && f.fim) };
+  if (!r.temDatas) return r;
+  const h = hoje();
+  r.total = difDias(f.ini, f.fim) + 1;
+  r.decorridos = Math.max(0, Math.min(r.total, difDias(f.ini, h) + 1));
+  r.restantes = r.total - r.decorridos;
+  r.esperado = f.meta * r.decorridos / r.total;
+  r.ritmo = r.esperado > 0 ? gasto / r.esperado : null;
+  const ontem = somaDias(h, -1), ini7 = somaDias(h, -7);
+  const fechados = MIDIA.filter(m => m.fase === f.id && m.dia >= ini7 && m.dia <= ontem && m.dia >= f.ini);
+  const diasFechados = Math.max(0, Math.min(7, difDias(f.ini, ontem) + 1));
+  r.media7 = diasFechados ? soma(fechados, m => m.gasto) / diasFechados : null;
+  r.projecao = r.media7 != null ? gasto + r.media7 * r.restantes : null;
+  r.porDia = r.restantes > 0 ? Math.max(0, f.meta - gasto) / r.restantes : null;
+  if (r.media7 && f.meta > gasto) r.acabaEm = somaDias(h, Math.floor((f.meta - gasto) / r.media7));
+  r.status = h < f.ini ? 'futura' : h > f.fim ? 'encerrada' : 'ativa';
+  return r;
+}
+
+function renderFases(){
+  const estados = FASES.map(estadoFase).sort((a,b) => a.f.ordem - b.f.ordem);
+  const comVerba = estados.filter(e => e.f.meta > 0 || e.gasto > 0);
+  const semVerba = estados.filter(e => !(e.f.meta > 0 || e.gasto > 0));
+  $('#fases-box').innerHTML = comVerba.map(e => {
+    const f = e.f, usado = f.meta ? e.gasto / f.meta : null;
+    const larg = usado == null ? 0 : Math.min(100, usado*100);
+    const marca = e.temDatas && f.meta ? Math.min(100, e.esperado / f.meta * 100) : null;
+    let pill = '', rodape = '';
+    if (e.status === 'futura'){
+      pill = '<span class="pill mut">começa em ' + dataBR(f.ini) + '</span>';
+      rodape = `${e.total} dias · ${brl(f.meta / e.total)} por dia para fechar na meta`;
+    } else if (e.temDatas && e.ritmo != null){
+      const r = e.ritmo;
+      pill = r > 1.15 ? `<span class="pill ref">▲ ${pct(r,1)} do ritmo</span>`
+           : r < 0.85 ? `<span class="pill wait">▼ ${pct(r,1)} do ritmo</span>`
+           : `<span class="pill good">● no ritmo (${pct(r,1)})</span>`;
+      const partes = [];
+      if (e.status === 'ativa') partes.push(`dia <b>${e.decorridos}</b> de ${e.total}`);
+      if (e.media7 != null && e.status === 'ativa') partes.push(`média dos últimos 7 dias <b>${brl(e.media7)}</b>/dia`);
+      if (e.projecao != null && e.status === 'ativa') partes.push(`nesse ritmo fecha a fase em <b>${brl(e.projecao)}</b>`);
+      if (e.acabaEm && e.acabaEm < f.fim && e.status === 'ativa') partes.push(`a verba acaba em <b>${dataBRano(e.acabaEm)}</b>`);
+      if (e.porDia != null && e.status === 'ativa') partes.push(e.gasto >= f.meta
+        ? '<b>meta já estourada</b>' : `para fechar na meta: <b>${brl(e.porDia)}</b>/dia nos ${e.restantes} dias restantes`);
+      rodape = partes.join(' · ');
+    } else if (!f.meta && e.gasto > 0){
+      pill = '<span class="pill ref">gasto sem verba planejada</span>';
+    }
+    return `<div class="card fase">
+      <div class="topo"><span class="nome">${esc(f.nome)}</span>${pill}</div>
+      <div class="per">${e.temDatas ? dataBRano(f.ini) + ' → ' + dataBRano(f.fim) : 'sem período no briefing'} · tag <code>[${esc(f.tags[0])}]</code></div>
+      <div class="nums">
+        <span>Gasto<b>${brl(e.gasto)}</b></span>
+        <span>Meta<b>${f.meta ? brl(f.meta) : '—'}</b></span>
+        <span>Executado<b>${usado == null ? '—' : pct(e.gasto, f.meta)}</b></span>
+        ${e.temDatas && e.status !== 'futura' ? `<span>Esperado até hoje<b>${brl(e.esperado)}</b></span>` : ''}
+      </div>
+      <div class="trilho" role="img" aria-label="${esc(f.nome)}: ${usado == null ? 'sem meta' : pct(e.gasto, f.meta) + ' da meta'}">
+        <div class="gasto${usado > 1 ? ' estouro' : ''}" style="width:${larg.toFixed(1)}%"></div>
+        ${marca != null && e.status !== 'futura' ? `<div class="marca" style="left:calc(${marca.toFixed(1)}% - 1px)" title="onde o gasto deveria estar hoje"></div>` : ''}
+      </div>
+      <div class="rodape">${rodape}</div>
+    </div>`;
+  }).join('');
+  $('#fases-sem-verba').textContent = semVerba.length
+    ? 'Sem verba planejada no briefing: ' + semVerba.map(e => e.f.nome).join(', ') + '.' : '';
+  return estados;
+}
+
+/* ======================= RENDER ======================= */
+function janela(){
+  const seg = ($('.seg button[aria-pressed="true"]')||{}).dataset?.range || 'all';
+  $('#dtr').classList.toggle('on', seg === 'custom');
+  let de = null, ate = null;
+  if (seg === 'custom'){
+    de = $('#dt-de').value || null; ate = $('#dt-ate').value || null;
+    const invertido = de && ate && de > ate;
+    if (invertido){ [de, ate] = [ate, de]; $('#dt-de').value = de; $('#dt-ate').value = ate; }
+    $('#dt-aviso').classList.toggle('hidden', !invertido);
+  } else if (seg !== 'all'){
+    de = somaDias(hoje(), -(parseInt(seg,10)-1));
+  }
+  return [de, ate];
+}
+
+function render(){
+  const [de, ate] = janela();
+  const dentro = d => { const s = String(d||'').slice(0,10); return (!de || s >= de) && (!ate || s <= ate); };
+  const midia = MIDIA.filter(m => dentro(m.dia));
+  const novos = NOVOS.filter(l => dentro(l.dia));
+  const cads  = CADASTROS.filter(l => dentro(l.dia));
+
+  const inv = soma(midia, m => m.gasto), imps = soma(midia, m => m.impressoes);
+  const cliques = soma(midia, m => m.cliques), leadsPx = soma(midia, m => m.leads_pixel);
+  const pagos = novos.filter(l => ehPago(l.canal));
+  const cadPagos = cads.filter(l => ehPago(l.canal));
+  const porCanal = agrupar(novos, l => l.canal);
+  const nCanal = c => (porCanal.get(c)||[]).length;
+
+  /* ---- janela ---- */
+  const datas = [...midia.map(m => m.dia), ...cads.map(l => l.dia)].filter(Boolean).sort();
+  $('#janela-txt').textContent = datas.length ? dataBR(datas[0]) + ' → ' + dataBR(datas[datas.length-1])
+    : (de || ate) ? `${dataBR(de)} → ${dataBR(ate)} · sem dado no período` : '';
+
+  /* ---- fase atual ---- */
+  const ativa = FASES.filter(f => f.ini && f.fim && hoje() >= f.ini && hoje() <= f.fim).sort((a,b) => a.ordem - b.ordem);
+  $('#fase-chip').textContent = ativa.length ? '● ' + ativa.map(f => f.nome).join(' + ') : '';
+  $('#fase-chip').classList.toggle('hidden', !ativa.length);
+
+  /* ---- KPIs de captação ---- */
+  const cpl = inv > 0 ? div(inv, pagos.length) : null;
+  $('#k-cpl').textContent = nOrDash(cpl, brl);
+  $('#k-cpl-foot').textContent = inv > 0 ? `${brl(inv)} ÷ ${pagos.length} leads pagos únicos` : 'sem investimento no período';
+  const verba = FASES.reduce((s, f) => s + (f.meta||0), 0);
+  const invTudo = soma(MIDIA, m => m.gasto);
+  $('#k-inv').textContent = brl(inv);
+  $('#k-inv-foot').textContent = verba ? `${pct(invTudo, verba)} da verba total de ${brl(verba)} já usada` : `${midia.length} linhas de anúncio`;
+  $('#k-leads').textContent = num(novos.length);
+  $('#k-leads-foot').textContent = `${num(cads.length)} cadastros · ${num(cads.length - novos.length)} repetidos`;
+  $('#k-pagos').textContent = num(pagos.length);
+  $('#k-pagos-foot').textContent = `${pct(pagos.length, novos.length)} dos leads · frio ${nCanal('frio')} · quente ${nCanal('quente')}`;
+  $('#k-org').textContent = num(novos.length - pagos.length);
+  $('#k-org-foot').textContent = `WhatsApp ${nCanal('whatsapp')} · sem UTM ${nCanal('organico')}` + (nCanal('outros') ? ` · outros ${nCanal('outros')}` : '');
+  $('#k-cplcad').textContent = inv > 0 ? nOrDash(div(inv, cadPagos.length), brl) : '—';
+  $('#k-cplcad-foot').textContent = `${num(cadPagos.length)} cadastros pagos, contando quem se cadastrou mais de uma vez`;
+
+  $('#k-cpm').textContent = nOrDash(div(inv*1000, imps), brl);
+  $('#k-cpm-foot').textContent = num(imps) + ' impressões';
+  $('#k-ctr').textContent = pctFino(cliques, imps);
+  $('#k-ctr-foot').textContent = num(cliques) + ' cliques no link';
+  $('#k-cpc').textContent = nOrDash(div(inv, cliques), brl);
+  $('#k-cpc-foot').textContent = 'por clique no link';
+  $('#k-conv').textContent = pctFino(pagos.length, cliques);
+  $('#k-conv-foot').textContent = 'leads pagos únicos ÷ cliques';
+  $('#k-cplpx').textContent = inv > 0 ? nOrDash(div(inv, leadsPx), brl) : '—';
+  $('#k-cplpx-foot').textContent = `${num(leadsPx)} leads no pixel da Meta`;
+
+  /* ---- fases ---- */
+  const estados = renderFases();
+
+  /* ---- funil ---- */
+  const custo = q => inv > 0 ? div(inv, q) : null;
+  const etapas = [
+    ['Impressões',          imps,         inv > 0 ? div(inv*1000, imps) : null, 'CPM (por 1.000)'],
+    ['Cliques no link',     cliques,      custo(cliques),      'CPC'],
+    ['Leads no pixel',      leadsPx,      custo(leadsPx),      'Custo por lead (pixel)'],
+    ['Leads pagos',         pagos.length, custo(pagos.length), 'CPL · lead único'],
+  ];
+  const larg = i => 100 - 72 * (i / (etapas.length - 1));
+  $('#funil-box').innerHTML = '<div class="funil">' + etapas.map((e, i) => {
+    const [nome, val, c, rot] = e, ant = i ? etapas[i-1][1] : null;
+    const elo = !i ? '' : `<div class="fc"><div class="fc-line"></div>${ant > 0
+      ? `<div class="fc-tag">${esc(pctFino(val, ant))} da etapa anterior</div>` : ''}<div class="fc-line"></div></div>`;
+    return `${elo}<div class="ftrap${i === etapas.length-1 ? ' fim' : ''}" style="width:${larg(i).toFixed(1)}%">
+      <div class="ft-left"><div class="ft-name">${esc(nome)}</div><div class="ft-val">${num(val)}</div></div>
+      <div class="ft-right"><div class="ft-cost">${esc(nOrDash(c, brl))}</div><div class="ft-cost-lbl">${esc(rot)}</div></div>
+    </div>`;
+  }).join('') + '</div>';
+
+  /* ---- evolução diária (dias corridos: dia sem dado aparece como buraco) ---- */
+  let dias = [];
+  if (datas.length){ for (let d = datas[0]; d <= datas[datas.length-1]; d = somaDias(d, 1)) dias.push(d); }
+  const gDia = agrupar(midia, m => m.dia), nDia = agrupar(novos, l => l.dia);
+  const gastoDia = dias.map(d => soma(gDia.get(d)||[], m => m.gasto));
+  const pagosDia = dias.map(d => (nDia.get(d)||[]).filter(l => ehPago(l.canal)).length);
+  const outrosDia = dias.map(d => (nDia.get(d)||[]).filter(l => !ehPago(l.canal)).length);
+  const planoDia = dias.map(d => FASES.filter(f => f.ini && f.fim && d >= f.ini && d <= f.fim)
+    .reduce((s, f) => s + f.meta / (difDias(f.ini, f.fim) + 1), 0) || null);
+  const ultimoLead = CADASTROS.length ? CADASTROS[CADASTROS.length-1].dia : null;
+  const diaCompleto = ultimoDiaCompleto();
+
+  desenhar('c-gasto', {
+    type:'bar', data:{ labels:dias.map(dataBR), datasets:[
+      { label:'Investido', data:gastoDia, backgroundColor:css('--cat1'), borderColor:css('--surface'), ...barra, order:2 },
+      { type:'line', label:'Ritmo planejado', data:planoDia, borderColor:css('--muted'), borderDash:[5,4], borderWidth:1.5,
+        pointRadius:0, stepped:true, semRotulo:true, order:1 },
+    ]},
+    options:{ ...BASE, scales:eixos({moeda:true}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => `${c.dataset.label}: ${brl(c.parsed.y)}`), rotulos:{ fmt: v => brlCurto(v) } } },
+  });
+  desenhar('c-leads', {
+    type:'bar', data:{ labels:dias.map(dataBR), datasets:[
+      { label:'Pagos', data:pagosDia, backgroundColor:css('--cat2'), borderColor:css('--surface'), ...barra },
+      { label:'Orgânico / WhatsApp / outros', data:outrosDia, backgroundColor:css('--neutro'), borderColor:css('--surface'), ...barra },
+    ]},
+    options:{ ...BASE, scales:eixos({empilhado:true}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => `${c.dataset.label}: ${c.parsed.y}`), rotulos:{ total:true } } },
+  });
+  /* dia depois do último cadastro registrado = sem dado de lead, não CPL infinito */
+  const cplDia = dias.map((d, i) => pagosDia[i] && gastoDia[i] && (!diaCompleto || d <= diaCompleto) ? gastoDia[i] / pagosDia[i] : null);
+  desenhar('c-cpl', {
+    type:'bar', data:{ labels:dias.map(dataBR), datasets:[
+      { label:'CPL', data:cplDia, backgroundColor:css('--cat1'), borderColor:css('--surface'), ...barra } ]},
+    options:{ ...BASE, scales:eixos({moeda:true}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => {
+        const i = c.dataIndex, d = dias[i];
+        if (cplDia[i] == null) return diaCompleto && d > diaCompleto
+          ? (d === ultimoLead ? 'dia incompleto na aba de leads' : 'sem lead registrado na planilha') : 'sem lead pago';
+        return `${brl(cplDia[i])} · ${pagosDia[i]} lead(s) · ${brl(gastoDia[i])}`;
+      }), rotulos:{ fmt: v => brlCurto(v) } } },
+  });
+
+  /* ---- público ---- */
+  $('#pub-box').innerHTML = ['frio','quente'].map(p => {
+    const mm = midia.filter(m => m.publico === p), g = soma(mm, m => m.gasto);
+    const im = soma(mm, m => m.impressoes), cl = soma(mm, m => m.cliques);
+    const ll = nCanal(p);
+    return `<div class="bloco">
+      <div class="t">${p === 'frio' ? 'Frio' : 'Quente'}</div>
+      <div class="cpl">${esc(g > 0 ? nOrDash(div(g, ll), brl) : '—')}</div>
+      <div class="foot" style="font-size:12px;color:var(--muted);margin-bottom:8px">CPL · lead único</div>
+      <div class="linha"><span>Investimento</span><b>${esc(brl(g))} · ${pct(g, inv)}</b></div>
+      <div class="linha"><span>Leads únicos</span><b>${ll} · ${pct(ll, pagos.length)}</b></div>
+      <div class="linha"><span>CTR</span><b>${esc(pctFino(cl, im))}</b></div>
+      <div class="linha"><span>CPM</span><b>${esc(nOrDash(div(g*1000, im), brl))}</b></div>
+    </div>`;
+  }).join('');
+
+  /* ---- criativos ---- */
+  const lPorCri = agrupar(pagos, l => chave(l.criativo));
+  const mPorCri = agrupar(midia, m => chave(m.anuncio));
+  const cri = [...mPorCri.entries()].map(([k, mm]) => {
+    const g = soma(mm, m => m.gasto), ll = (lPorCri.get(k)||[]).length;
+    return { k, nome: mm[0].anuncio, thumb: (mm.find(m => m.thumb)||{}).thumb, gasto: g,
+             imps: soma(mm, m => m.impressoes), cliques: soma(mm, m => m.cliques),
+             px: soma(mm, m => m.leads_pixel), leads: ll, cpl: ll && g ? g / ll : null };
+  }).filter(x => x.gasto > 0).sort((a,b) => b.gasto - a.gasto);
+  const comLead = cri.filter(x => x.cpl != null && x.leads >= 5);
+  const melhor = comLead.length ? comLead.reduce((a,b) => b.cpl < a.cpl ? b : a) : null;
+  const cplMedio = div(inv, pagos.length);
+  const pillCpl = x => {
+    if (x.cpl == null) return '<span class="pill mut">sem lead</span>';
+    const cls = x === melhor ? 'good' : cplMedio && x.cpl > cplMedio * 1.25 ? 'ref' : cplMedio && x.cpl < cplMedio * 0.85 ? 'good' : 'wait';
+    return `<span class="pill ${cls}">${x === melhor ? '🏆 ' : ''}${esc(brl(x.cpl))}</span>`;
+  };
+  $('#tab-criativo tbody').innerHTML = cri.map(x => `<tr>
+    <td class="wrap-ok"><div class="cri">${x.thumb ? `<img class="thumb" src="${esc(x.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<span class="thumb"></span>'}<span>${esc(x.nome)}</span></div></td>
+    <td class="n">${esc(brl(x.gasto))}</td><td class="n">${num(x.imps)}</td>
+    <td class="n">${esc(pctFino(x.cliques, x.imps))}</td><td class="n">${esc(nOrDash(div(x.gasto, x.cliques), brl))}</td>
+    <td class="n">${num(x.px)}</td><td class="n">${num(x.leads)}</td><td class="n">${pillCpl(x)}</td></tr>`).join('')
+    || '<tr><td colspan="8" style="color:var(--muted)">Sem investimento no período.</td></tr>';
+  const criCpl = cri.filter(x => x.cpl != null).sort((a,b) => a.cpl - b.cpl);
+  desenhar('c-criativo', {
+    type:'bar', data:{ labels:criCpl.map(x => encurtar(x.nome, 30)), datasets:[
+      { label:'CPL', data:criCpl.map(x => x.cpl), backgroundColor:css('--cat1'), borderColor:css('--surface'), ...barra } ]},
+    options:{ ...BASE, indexAxis:'y', scales:eixos({horiz:true, moeda:true, pad:1.3}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => { const x = criCpl[c.dataIndex]; return `${brl(x.cpl)} · ${x.leads} leads · ${brl(x.gasto)}`; }),
+      rotulos:{ fmt: v => brl(v) } } },
+  });
+
+  /* ---- conjuntos ---- */
+  const lPorConj = agrupar(pagos, l => chaveConj(l.conjunto));
+  const conj = [...agrupar(midia, m => chaveConj(m.conjunto)).entries()].map(([k, mm]) => {
+    const g = soma(mm, m => m.gasto), ll = (lPorConj.get(k)||[]).length;
+    const nomes = [...new Set(mm.map(m => m.conjunto))];
+    return { k, nome: nomes.sort((a,b) => a.length - b.length)[0], variantes: nomes.length, publico: mm[0].publico,
+             gasto: g, imps: soma(mm, m => m.impressoes), cliques: soma(mm, m => m.cliques),
+             px: soma(mm, m => m.leads_pixel), leads: ll, cpl: ll && g ? g / ll : null };
+  }).filter(x => x.gasto > 0).sort((a,b) => b.gasto - a.gasto);
+  $('#tab-conjunto tbody').innerHTML = conj.map(x => `<tr>
+    <td class="wrap-ok">${esc(x.nome)}${x.variantes > 1 ? ` <span class="pill mut" title="conjuntos duplicados com sufixo numérico, somados">+${x.variantes-1} cópia(s)</span>` : ''}</td>
+    <td>${esc(x.publico)}</td><td class="n">${esc(brl(x.gasto))}</td><td class="n">${num(x.imps)}</td>
+    <td class="n">${esc(pctFino(x.cliques, x.imps))}</td><td class="n">${num(x.px)}</td><td class="n">${num(x.leads)}</td>
+    <td class="n">${pillCpl(x)}</td></tr>`).join('')
+    || '<tr><td colspan="8" style="color:var(--muted)">Sem investimento no período.</td></tr>';
+
+  /* ---- origem e posicionamento ---- */
+  const canais = ['frio','quente','whatsapp','organico','outros'].filter(c => nCanal(c));
+  desenhar('c-origem', {
+    type:'bar', data:{ labels:canais.map(c => ROT_CANAL[c]), datasets:[{ label:'Leads',
+      data:canais.map(nCanal), backgroundColor:canais.map(c => ehPago(c) ? css('--cat2') : css('--neutro')),
+      borderColor:css('--surface'), ...barra }]},
+    options:{ ...BASE, indexAxis:'y', scales:eixos({horiz:true, pad:1.25}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => `${c.parsed.x} lead(s) · ${pct(c.parsed.x, novos.length)}`), rotulos:{ fmt: v => v } } },
+  });
+  const posic = [...agrupar(pagos, l => MACRO.test(l.posicionamento||'') ? '(macro não substituída)' : (l.posicionamento || '(sem utm_term)')).entries()]
+    .map(([k, v]) => ({ k: k.replace(/_/g,' '), n: v.length })).sort((a,b) => b.n - a.n).slice(0, 8);
+  desenhar('c-posic', {
+    type:'bar', data:{ labels:posic.map(p => p.k), datasets:[{ label:'Leads', data:posic.map(p => p.n),
+      backgroundColor:css('--cat2'), borderColor:css('--surface'), ...barra }]},
+    options:{ ...BASE, indexAxis:'y', scales:eixos({horiz:true, pad:1.25}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => `${c.parsed.x} lead(s) · ${pct(c.parsed.x, pagos.length)}`), rotulos:{ fmt: v => v } } },
+  });
+
+  renderVendas(dentro, inv, invTudo, novos);
+  banners(midia, cads, estados);
+}
+
+/* ======================= VENDAS ======================= */
+function renderVendas(dentro, inv, invTudo, novos){
+  const ped = PEDIDOS.filter(p => dentro(p.dia));
+  const pagos = ped.filter(p => p.final === 'pago');
+  const fat = soma(pagos, p => p.fat_pago);
+  $('#vendas-hint').textContent = ped.length ? `${ped.length} pedido(s) do CW26 · sem dado pessoal` : 'aba vendas · Kiwify';
+  const metasHtml = METAS ? `<div class="kpis" style="margin-top:12px">
+      <div class="kpi"><span class="lab">Meta de vendas</span><div class="val sm">${num(METAS.vendas)}</div><div class="foot">${pct(pagos.length, METAS.vendas)} atingido</div></div>
+      <div class="kpi"><span class="lab">Meta de faturamento</span><div class="val sm">${esc(brl(METAS.faturamento))}</div><div class="foot">${pct(fat, METAS.faturamento)} atingido</div></div>
+      ${METAS.roas ? `<div class="kpi"><span class="lab">ROAS meta</span><div class="val sm">${String(METAS.roas.toFixed(2)).replace('.',',')}×</div><div class="foot">aba metas_vendas</div></div>` : ''}
+    </div>` : '';
+  if (!pagos.length){
+    $('#vendas-box').innerHTML = `<div class="note pending"><span class="ic">◷</span><div>
+      <b>Carrinho ainda não abriu.</b> A ação está na captação — a venda do combo começa depois do
+      evento. As vendas entram aqui sozinhas assim que a aba <code>vendas</code> trouxer um pedido com
+      <b>Classical Week 2026</b> no produto ou no plano, ou com <code>utm_campaign</code> do CW26.
+      ${ped.length ? `Hoje há ${ped.length} pedido(s) do CW26 sem pagamento confirmado.` : ''}
+      ${METAS ? '' : ' A aba <code>metas_vendas</code> ainda está com valores de marcador (1).'}</div></div>` + metasHtml;
+    return;
+  }
+  const invRef = inv || invTudo;
+  const compradoresLead = new Set(pagos.filter(p => p.lead).map(p => p.p_email || p.p_fone)).size;
+  const compradores = new Set(pagos.map(p => p.p_email || p.p_fone || p.order_ref)).size;
+  const roas = div(fat, invRef);
+  $('#vendas-box').innerHTML = `<div class="kpis">
+      <div class="kpi hero"><span class="lab">ROAS</span><div class="val">${roas == null ? '—' : roas.toFixed(2).replace('.',',') + '×'}</div>
+        <div class="foot">${esc(brl(fat))} para ${esc(brl(invRef))} de mídia</div>
+        <span class="flag ${roas == null ? '' : roas < 1 ? 'crit' : roas < 2 ? 'warn' : 'good'}">${roas == null ? '' : roas < 1 ? '▼ abaixo do break-even' : roas < 2 ? '● no limite' : '▲ lucrativo'}</span></div>
+      <div class="kpi"><span class="lab">Vendas</span><div class="val">${num(pagos.length)}</div><div class="foot">${ped.filter(p => p.final === 'aguardando').length} aguardando · ${ped.filter(p => p.final === 'estorno').length} estorno(s)</div></div>
+      <div class="kpi"><span class="lab">Faturamento</span><div class="val sm">${esc(brl(fat))}</div><div class="foot">líquido do produtor (coluna Faturamento)</div></div>
+      <div class="kpi"><span class="lab">Ticket médio</span><div class="val sm">${esc(nOrDash(div(fat, pagos.length), brl))}</div><div class="foot">por pedido pago</div></div>
+      <div class="kpi"><span class="lab">CAC</span><div class="val sm">${esc(nOrDash(div(invRef, pagos.length), brl))}</div><div class="foot">mídia ÷ vendas</div></div>
+      <div class="kpi"><span class="lab">Conversão de lead</span><div class="val sm">${pctFino(compradoresLead, NOVOS.length)}</div><div class="foot">${compradoresLead} de ${compradores} compradores são leads do CW26</div></div>
+    </div>` + metasHtml;
+}
+
+/* ======================= BANNERS ======================= */
+function banners(midia, cads, estados){
+  const out = [];
+  const erros = (BRUTO && BRUTO.erros) || {};
+  Object.entries(erros).forEach(([aba, msg]) => out.push(`<div class="note crit"><span class="ic">■</span><div>
+    <b>Não consegui ler a aba <code>${esc(aba)}</code>.</b> ${esc(msg)}</div></div>`));
+
+  const capt = estados.find(e => e.f.id === 'capt');
+  if (capt && capt.status === 'ativa' && capt.ritmo > 1.15){
+    out.push(`<div class="note crit"><span class="ic">■</span><div>
+      <b>Captação gastando acima do planejado.</b> ${brl(capt.gasto)} de ${brl(capt.f.meta)} já foram usados
+      (${pct(capt.gasto, capt.f.meta)}) no dia ${capt.decorridos} de ${capt.total} — o esperado era ${brl(capt.esperado)}.
+      ${capt.acabaEm && capt.acabaEm < capt.f.fim ? `No ritmo dos últimos 7 dias (${brl(capt.media7)}/dia) <b>a verba acaba em ${dataBRano(capt.acabaEm)}</b>, antes do fim da fase (${dataBRano(capt.f.fim)}). ` : ''}
+      ${capt.porDia != null && capt.gasto < capt.f.meta ? `Para fechar na meta, o teto é ${brl(capt.porDia)}/dia.` : ''}</div></div>`);
+  }
+
+  /* a aba leads e a aba meta_ads não andam juntas: se a mídia está mais nova, os dias
+     sem lead inflam o CPL do período */
+  const ultMidia = MIDIA.map(m => m.dia).sort().pop();
+  const ultLead = CADASTROS.length ? CADASTROS[CADASTROS.length-1].criado_em : null;
+  const completo = ultimoDiaCompleto();
+  if (completo){
+    const pagosAte = NOVOS.filter(l => ehPago(l.canal) && l.dia <= completo).length;
+    const gastoAte = soma(MIDIA.filter(m => m.dia <= completo), m => m.gasto);
+    out.push(`<div class="note warn"><span class="ic">▲</span><div>
+      <b>A aba de leads está atrasada.</b> O último cadastro registrado é de <b>${dataBRano(ultLead)} ${horaBR(ultLead)}</b>,
+      e a mídia vai até <b>${dataBRano(ultMidia)}</b>. O gasto dos dias seguintes entra no CPL sem os leads
+      correspondentes. Até ${dataBR(completo)}, último dia completo, o CPL era <b>${brl(div(gastoAte, pagosAte))}</b>
+      (${brl(gastoAte)} ÷ ${pagosAte} leads pagos).
+      Conferir o fluxo que grava a aba <code>leads</code>.</div></div>`);
+  }
+
+  const reenvios = CADASTROS.length - NOVOS.length;
+  if (reenvios / Math.max(1, CADASTROS.length) > 0.1){
+    out.push(`<div class="note info"><span class="ic">●</span><div>
+      <b>${pct(reenvios, CADASTROS.length)} dos cadastros são repetidos</b> — ${num(CADASTROS.length)} cadastros de
+      ${num(NOVOS.length)} pessoas. A maioria reenvia o formulário em menos de um minuto. O dashboard conta
+      cada pessoa uma vez (e-mail ou telefone); o CPL por cadastro conta a repetição.</div></div>`);
+  }
+
+  if (ATRIBUICAO === 'pagina'){
+    const peloCampo = CADASTROS.filter(l => ehPago(l.canal_campos)).length;
+    const pelaPagina = CADASTROS.filter(l => ehPago(l.canal)).length;
+    if (Math.abs(peloCampo - pelaPagina) >= 5){
+      out.push(`<div class="note info"><span class="ic">●</span><div>
+        <b>Atribuição pela URL da página, não pelos campos do formulário.</b> Os campos ocultos perdem UTM:
+        pelos campos são ${num(peloCampo)} cadastros pagos (o número da aba <code>big_numbers</code>); pela URL no
+        momento do envio são ${num(pelaPagina)}. Os campos nunca registram o conjunto "00 - Lista de compradores
+        geral", que tem gasto. Vale revisar o script que preenche os campos ocultos na página.</div></div>`);
+    }
+  }
+
+  const macro = CADASTROS.filter(l => ehPago(l.canal) && [l.criativo, l.conjunto, l.posicionamento].some(v => MACRO.test(v||'')));
+  if (macro.length){
+    out.push(`<div class="note warn"><span class="ic">▲</span><div>
+      <b>Erro de tracking na Meta:</b> ${macro.length} cadastro(s) chegaram com macro literal
+      (<code>{{adset.name}}</code>, <code>{{placement}}</code>) no lugar do valor. Contam nos totais, mas não
+      casam com o gasto do conjunto/criativo. Corrigir o parâmetro de URL do anúncio.</div></div>`);
+  }
+
+  $('#banners').innerHTML = out.join('');
+  const extras = [N_TESTE ? `${N_TESTE} cadastro(s) de teste fora` : '', FORA_TAG ? `${FORA_TAG} linha(s) de mídia sem [CW26] ignoradas` : '']
+    .filter(Boolean).join(' · ');
+  $('#rodape').textContent = 'Fonte: planilha do lançamento (Meta Ads, formulário, Kiwify) via Worker · lido '
+    + (BRUTO && BRUTO.gerado_em ? new Date(BRUTO.gerado_em).toLocaleString('pt-BR') : '—') + (extras ? ' · ' + extras : '');
+}
+
+/* ======================= FILTRO DE PERÍODO ======================= */
+function limitesDeData(){
+  const datas = [...MIDIA.map(m => m.dia), ...CADASTROS.map(l => l.dia)].filter(Boolean).sort();
+  if (!datas.length) return;
+  const [ini, fim] = [datas[0], datas[datas.length-1]];
+  ['#dt-de','#dt-ate'].forEach(s => { const el = $(s); el.min = ini; el.max = fim; });
+  if (!$('#dt-de').value)  $('#dt-de').value  = ini;
+  if (!$('#dt-ate').value) $('#dt-ate').value = fim;
+}
+
+/* ======================= BOOT ======================= */
+async function boot(fresh){
+  if (/SEU-WORKER/.test(WORKER_URL) && !new URLSearchParams(location.search).get('fonte')){
+    $('#loading').classList.add('hidden'); $('#erro').classList.remove('hidden');
+    $('#erro').textContent = 'Falta configurar a URL do Worker (constante WORKER_URL no index.html).';
+    return;
+  }
+  if (!BRUTO) $('#loading').classList.remove('hidden');
+  $('#erro').classList.add('hidden');
+  try {
+    const r = await fetch(urlFonte(fresh), { cache:'no-store' });
+    const d = await r.json().catch(() => ({ error: 'resposta não é JSON (HTTP ' + r.status + ')' }));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    BRUTO = d;
+    preparar(d);
+    limitesDeData();
+    $('#loading').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    render();
+  } catch(e){
+    $('#loading').classList.add('hidden');
+    $('#erro').classList.remove('hidden');
+    $('#erro').textContent = 'Não consegui carregar: ' + e.message;
+  }
+}
+
+$('#btn-refresh').addEventListener('click', () => boot(true));
+$$('.seg button').forEach(b => b.addEventListener('click', () => {
+  $$('.seg button').forEach(x => x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true'); if (BRUTO) render();
+}));
+['#dt-de','#dt-ate'].forEach(s => $(s).addEventListener('change', () => BRUTO && render()));
+$('#dt-tudo').addEventListener('click', () => {
+  $('#dt-de').value = $('#dt-de').min; $('#dt-ate').value = $('#dt-ate').max; if (BRUTO) render();
+});
+$('#btn-tema').addEventListener('click', () => {
+  document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('b16-tema', escuro() ? 'dark' : 'light'); } catch(e){}
+  if (BRUTO) render();   // cores dos gráficos vêm do CSS
+});
+try { if (localStorage.getItem('b16-tema') === 'dark') document.documentElement.classList.add('dark'); } catch(e){}
+
+boot(false);
+/* lançamento ao vivo: relê a cada 10 min (o Worker segura 2 min de cache) */
+setInterval(() => { if (!document.hidden) boot(false); }, 10 * 60 * 1000);
+</script>
+</body>
+</html>
