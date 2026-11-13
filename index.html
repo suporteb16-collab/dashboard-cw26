@@ -352,6 +352,43 @@ footer .links a{margin-right:12px}
     <section>
       <div class="sec-head"><h2>Vendas</h2><span class="hint" id="vendas-hint"></span></div>
       <div id="vendas-box"></div>
+
+      <div class="grid g2" id="vendas-graficos" style="margin-top:14px">
+        <div class="card">
+          <h3>Vendas e faturamento por dia</h3>
+          <p class="cap">Barra = faturamento líquido do dia (pedidos pagos). O número acima da
+          barra é a quantidade de vendas. A linha tracejada é o investimento em mídia do dia.</p>
+          <div class="plot"><canvas id="c-vendas-dia"></canvas></div>
+          <div class="leg"><span><i style="background:var(--cat2)"></i>Faturamento</span><span><i class="linha"></i>Investimento em mídia</span></div>
+        </div>
+        <div class="card">
+          <h3>Funil lead → comprador</h3>
+          <p class="cap">Do lead captado à compra paga. A última etapa conta só comprador que
+          está na base de leads do CW26 — quem comprou sem ter se cadastrado fica de fora.</p>
+          <div id="funil-vendas"></div>
+        </div>
+      </div>
+
+      <div class="grid g2" id="vendas-origem-box" style="margin-top:14px">
+        <div class="card">
+          <h3>Origem da venda</h3>
+          <p class="cap">Pela <code>utm_campaign</code>/<code>utm_source</code> do pedido na Kiwify.
+          <b>Direto</b> = checkout sem UTM da campanha, não venda orgânica.</p>
+          <div class="plot short"><canvas id="c-vendas-origem"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Status dos pedidos</h3>
+          <p class="cap">Todo pedido do CW26 no período, não só o pago.</p>
+          <div class="plot short"><canvas id="c-vendas-status"></canvas></div>
+        </div>
+      </div>
+
+      <div class="tw" id="vendas-tabela-box" style="margin-top:14px">
+        <table id="tab-vendas">
+          <thead><tr><th>Data</th><th>Pedido</th><th>Status</th><th>Método</th><th>Origem</th><th>Lead CW26</th><th class="n">Faturamento</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
 
     <footer>
@@ -387,11 +424,12 @@ const FASES = [
   { id:'aquec',    nome:'Aquecimento',   tags:['AQUECIMENTO','DIST'],  ini:null, fim:null, meta:0, ordem:1 },
   { id:'capt',     nome:'Captação',      tags:['LEADS','CAPT'],        ini:'2026-10-17', fim:'2026-11-08', meta:1500, ordem:2 },
 ];
-/* Venda do CW26. O produto ainda não existe na Kiwify (26/10): o carrinho abre
-   depois do evento. Em 2025 o CW foi vendido como PLANO "Classical Week 2025" do
-   produto Confraria — por isso o teste olha produto E plano. Conferir o nome
-   quando o carrinho abrir. */
-const VENDA_CW = /classical\s*week\s*(20)?26|\bcw\s*26\b/i;
+/* Venda do CW26. O carrinho abriu em 08/11/2026 e o produto entrou na Kiwify como
+   "Classica Week 2026" — sem o "l" de Classical. O regex aceita as duas grafias de
+   propósito: se alguém corrigir o nome na Kiwify, o dashboard continua lendo. Em
+   2025 o CW foi vendido como PLANO "Classical Week 2025" do produto Confraria —
+   por isso o teste olha produto E plano. */
+const VENDA_CW = /class?ic?al?\s*week\s*(20)?26|\bcw\s*26\b/i;
 const UTM_CW   = /^cw(11)?26/i;                   // utm_campaign do lançamento (os leads chegam com cw1126)
 /* De onde sai a UTM do lead. 'pagina' = URL da página no momento do envio (coluna
    Referrer); 'campos' = campos ocultos do formulário. Os campos perdem atribuição —
@@ -603,7 +641,7 @@ const rotulos = {
           const v = ds.data[i]; if (v == null || v === 0) return;
           ctx.textAlign = horiz ? 'left' : 'center';
           ctx.textBaseline = horiz ? 'middle' : 'bottom';
-          ctx.fillText(fmt(v, di), el.x + (horiz ? 6 : 0), el.y + (horiz ? 0 : -4));
+          ctx.fillText(fmt(v, di, i), el.x + (horiz ? 6 : 0), el.y + (horiz ? 0 : -4));
         });
       });
     }
@@ -922,27 +960,58 @@ function render(){
       tooltip: tooltip(c => `${c.parsed.x} lead(s) · ${pct(c.parsed.x, pagos.length)}`), rotulos:{ fmt: v => v } } },
   });
 
-  renderVendas(dentro, inv, invTudo, novos);
+  renderVendas(dentro, inv, invTudo, novos, pagos, dias, gastoDia);
   banners(midia, cads, estados);
 }
 
 /* ======================= VENDAS ======================= */
-function renderVendas(dentro, inv, invTudo, novos){
+/* Origem do pedido na Kiwify. A utm_campaign do checkout é o campo mais confiável:
+   "Direto" é o valor que a própria Kiwify grava quando não veio UTM de campanha —
+   NÃO é venda orgânica, é venda sem rastreio (quem entrou pela página de vendas pelo
+   link do e-mail/WhatsApp cai aqui). Quando a campanha vem (cw1125, classical_week_2026)
+   ela manda; senão uso a utm_source, que ainda separa youtube/email/quente. */
+const ROT_ORIGEM = { email:'E-mail', youtube:'YouTube', quente:'Meta · quente', frio:'Meta · frio' };
+/* A campanha do lançamento chega com três grafias no checkout: cw1126 (a do lead),
+   cw1125 (herdada do ano passado no criativo) e classical_week_2026 (link do e-mail).
+   As três são a mesma campanha — somar separado espalharia a leitura em fatias de 1. */
+const CAMP_CW = /^cw\s*11?2[56]$|^classical[_\s-]*week[_\s-]*(20)?26$/i;
+function origemVenda(p){
+  const camp = String(p.utm_campaign||'').trim(), src = String(p.utm_source||'').trim();
+  const limpo = s => s.replace(/^https?:\/\//,'').replace(/\/+$/,'');
+  if (camp && !/^direto$/i.test(camp) && !/^\d+$/.test(camp))
+    return (UTM_CW.test(camp) || CAMP_CW.test(camp)) ? 'Campanha CW26' : limpo(camp);
+  if (src && !/^direto$/i.test(src)){
+    const k = src.toLowerCase();
+    if (ROT_ORIGEM[k]) return ROT_ORIGEM[k];
+    return /escoladoouvido\.com/i.test(src) ? 'Página de vendas' : limpo(src);
+  }
+  return 'Direto / sem UTM';
+}
+const ROT_STATUS = { pago:'Pago', aguardando:'Aguardando pagamento', recusado:'Recusado', estorno:'Estornado' };
+const PILL_STATUS = { pago:'good', aguardando:'wait', recusado:'mut', estorno:'ref' };
+const ROT_METODO = { credit_card:'Cartão', pix:'Pix', boleto:'Boleto', paypal:'PayPal' };
+
+function renderVendas(dentro, inv, invTudo, novos, leadsPagos, dias, gastoDia){
   const ped = PEDIDOS.filter(p => dentro(p.dia));
   const pagos = ped.filter(p => p.final === 'pago');
   const fat = soma(pagos, p => p.fat_pago);
   $('#vendas-hint').textContent = ped.length ? `${ped.length} pedido(s) do CW26 · sem dado pessoal` : 'aba vendas · Kiwify';
+  /* os blocos extras só fazem sentido com venda paga; sem isso ficam escondidos */
+  ['#vendas-graficos','#vendas-origem-box','#vendas-tabela-box'].forEach(s => $(s).classList.toggle('hidden', !pagos.length));
   const metasHtml = METAS ? `<div class="kpis" style="margin-top:12px">
       <div class="kpi"><span class="lab">Meta de vendas</span><div class="val sm">${num(METAS.vendas)}</div><div class="foot">${pct(pagos.length, METAS.vendas)} atingido</div></div>
       <div class="kpi"><span class="lab">Meta de faturamento</span><div class="val sm">${esc(brl(METAS.faturamento))}</div><div class="foot">${pct(fat, METAS.faturamento)} atingido</div></div>
       ${METAS.roas ? `<div class="kpi"><span class="lab">ROAS meta</span><div class="val sm">${String(METAS.roas.toFixed(2)).replace('.',',')}×</div><div class="foot">aba metas_vendas</div></div>` : ''}
     </div>` : '';
   if (!pagos.length){
+    /* pode ser antes do carrinho abrir (08/11) ou um filtro de período sem venda paga */
+    const tudoVendas = PEDIDOS.filter(p => p.final === 'pago').length;
     $('#vendas-box').innerHTML = `<div class="note pending"><span class="ic">◷</span><div>
-      <b>Carrinho ainda não abriu.</b> A ação está na captação — a venda do combo começa depois do
-      evento. As vendas entram aqui sozinhas assim que a aba <code>vendas</code> trouxer um pedido com
-      <b>Classical Week 2026</b> no produto ou no plano, ou com <code>utm_campaign</code> do CW26.
-      ${ped.length ? `Hoje há ${ped.length} pedido(s) do CW26 sem pagamento confirmado.` : ''}
+      <b>Sem venda paga no período selecionado.</b>
+      ${tudoVendas ? `O lançamento tem <b>${tudoVendas} venda(s)</b> no total — use <b>Tudo</b> no filtro de período para ver.`
+        : `O carrinho abriu em <b>08/11/2026</b>; as vendas entram aqui sozinhas assim que a aba
+           <code>vendas</code> trouxer um pedido pago do CW26.`}
+      ${ped.length ? ` Há ${ped.length} pedido(s) do CW26 no período sem pagamento confirmado.` : ''}
       ${METAS ? '' : ' A aba <code>metas_vendas</code> ainda está com valores de marcador (1).'}</div></div>` + metasHtml;
     return;
   }
@@ -960,6 +1029,74 @@ function renderVendas(dentro, inv, invTudo, novos){
       <div class="kpi"><span class="lab">CAC</span><div class="val sm">${esc(nOrDash(div(invRef, pagos.length), brl))}</div><div class="foot">mídia ÷ vendas</div></div>
       <div class="kpi"><span class="lab">Conversão de lead</span><div class="val sm">${pctFino(compradoresLead, NOVOS.length)}</div><div class="foot">${compradoresLead} de ${compradores} compradores são leads do CW26</div></div>
     </div>` + metasHtml;
+
+  /* ---- por dia: faturamento (barra) × investimento (linha) ---- */
+  const pedDia = agrupar(pagos, p => p.dia);
+  const fatDia = dias.map(d => soma(pedDia.get(d)||[], p => p.fat_pago));
+  const qtdDia = dias.map(d => (pedDia.get(d)||[]).length);
+  desenhar('c-vendas-dia', {
+    data:{ labels:dias.map(dataBR), datasets:[
+      { type:'bar', label:'Faturamento', data:fatDia, backgroundColor:css('--cat2'), borderColor:css('--surface'), ...barra, order:2 },
+      { type:'line', label:'Investimento', data:gastoDia, borderColor:css('--muted'), borderDash:[5,4], borderWidth:1.5,
+        pointRadius:0, semRotulo:true, order:1 },
+    ]},
+    options:{ ...BASE, scales:eixos({moeda:true}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => c.dataset.label === 'Faturamento'
+        ? `${brl(c.parsed.y)} · ${qtdDia[c.dataIndex]} venda(s)` : `Investimento: ${brl(c.parsed.y)}`),
+      /* o rótulo da barra é a CONTAGEM de vendas — o dinheiro já está no eixo */
+      rotulos:{ fmt: (v, di, i) => di === 0 ? String(qtdDia[i] ?? '') : '' } } },
+  });
+
+  /* ---- funil lead → comprador ---- */
+  const etapas = [
+    ['Leads únicos',      novos.length,       'pessoas captadas no período'],
+    ['Leads pagos',       leadsPagos.length,  'vieram de mídia'],
+    ['Compradores',       compradores,        'pessoas que pagaram'],
+    ['Comprador que era lead', compradoresLead, 'estava na base do CW26'],
+  ];
+  const largF = i => 100 - 70 * (i / (etapas.length - 1));
+  $('#funil-vendas').innerHTML = '<div class="funil">' + etapas.map((e, i) => {
+    const [nome, val, rot] = e, ant = i ? etapas[i-1][1] : null;
+    const elo = !i ? '' : `<div class="fc"><div class="fc-line"></div>${ant > 0
+      ? `<div class="fc-tag">${esc(pctFino(val, ant))} da etapa anterior</div>` : ''}<div class="fc-line"></div></div>`;
+    return `${elo}<div class="ftrap${i === etapas.length-1 ? ' fim' : ''}" style="width:${largF(i).toFixed(1)}%">
+      <div class="ft-left"><div class="ft-name">${esc(nome)}</div><div class="ft-val">${num(val)}</div></div>
+      <div class="ft-right"><div class="ft-cost-lbl">${esc(rot)}</div></div>
+    </div>`;
+  }).join('') + '</div>';
+
+  /* ---- origem da venda ---- */
+  const orig = [...agrupar(pagos, origemVenda).entries()]
+    .map(([k, v]) => ({ k, n: v.length, fat: soma(v, p => p.fat_pago) })).sort((a,b) => b.n - a.n);
+  desenhar('c-vendas-origem', {
+    type:'bar', data:{ labels:orig.map(o => encurtar(o.k, 30)), datasets:[{ label:'Vendas', data:orig.map(o => o.n),
+      backgroundColor:css('--cat2'), borderColor:css('--surface'), ...barra }]},
+    options:{ ...BASE, indexAxis:'y', scales:eixos({horiz:true, pad:1.25}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => { const o = orig[c.dataIndex];
+        return `${o.n} venda(s) · ${brl(o.fat)} · ${pct(o.n, pagos.length)}`; }), rotulos:{ fmt: v => v } } },
+  });
+
+  /* ---- status dos pedidos ---- */
+  const ordemSt = ['pago','aguardando','recusado','estorno'].filter(s => ped.some(p => p.final === s));
+  const corSt = { pago:css('--good'), aguardando:css('--warn'), recusado:css('--neutro'), estorno:css('--critical') };
+  desenhar('c-vendas-status', {
+    type:'bar', data:{ labels:ordemSt.map(s => ROT_STATUS[s]), datasets:[{ label:'Pedidos',
+      data:ordemSt.map(s => ped.filter(p => p.final === s).length), backgroundColor:ordemSt.map(s => corSt[s]),
+      borderColor:css('--surface'), ...barra }]},
+    options:{ ...BASE, indexAxis:'y', scales:eixos({horiz:true, pad:1.25}), plugins:{ legend:{display:false},
+      tooltip: tooltip(c => `${c.parsed.x} pedido(s) · ${pct(c.parsed.x, ped.length)}`), rotulos:{ fmt: v => v } } },
+  });
+
+  /* ---- tabela de pedidos (mais recente primeiro) ---- */
+  $('#tab-vendas tbody').innerHTML = [...ped].sort((a,b) => a.criado_em < b.criado_em ? 1 : -1).map(p => `<tr>
+    <td>${esc(dataBRano(p.dia))} ${esc(horaBR(p.criado_em))}</td>
+    <td><code>${esc(p.order_ref)}</code></td>
+    <td><span class="pill ${PILL_STATUS[p.final]}">${esc(ROT_STATUS[p.final])}</span></td>
+    <td>${esc(ROT_METODO[p.metodo] || p.metodo || '—')}</td>
+    <td class="wrap-ok">${esc(origemVenda(p))}</td>
+    <td>${p.lead ? '<span class="pill good">sim</span>' : '<span class="pill mut">não</span>'}</td>
+    <td class="n">${esc(p.final === 'pago' ? brl(p.fat_pago) : '—')}</td></tr>`).join('')
+    || '<tr><td colspan="7" style="color:var(--muted)">Sem pedido no período.</td></tr>';
 }
 
 /* ======================= BANNERS ======================= */

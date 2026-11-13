@@ -77,8 +77,25 @@ plano importa: em 2025 o CW foi vendido como plano *Classical Week 2025* do prod
 Confraria. A aba `vendas` é o log de webhook do Maestro inteiro — um pedido aparece
 uma vez por evento, e o dashboard consolida por pedido (estorno ganha de pago, pago
 ganha do resto). Faturamento = coluna `Faturamento` (líquido do produtor), o
-contrato de receita da B16. **Conferir o nome do produto quando o carrinho abrir**
-(constante `VENDA_CW`).
+contrato de receita da B16.
+
+> ⚠️ **O produto entrou na Kiwify como `Classica Week 2026`** — sem o "l" de
+> Classical. Por isso o `VENDA_CW` aceita as duas grafias (`class?ic?al?`): o
+> dashboard lê as vendas sem depender de ninguém corrigir o cadastro, e continua
+> funcionando se o nome for corrigido depois.
+
+**Seção de Vendas** (liberada em 13/11/2026, carrinho aberto em 08/11): KPIs de
+ROAS/vendas/faturamento/ticket/CAC/conversão, faturamento por dia contra o
+investimento, funil lead → comprador, origem da venda, status dos pedidos e a
+tabela pedido a pedido. Os blocos abaixo dos KPIs só aparecem quando há venda paga
+no período — sem isso o filtro "Hoje" mostraria gráficos vazios.
+
+**Origem da venda** sai da `utm_campaign` do pedido e, na falta dela, da
+`utm_source`. `Direto` é o valor que a própria Kiwify grava quando não veio UTM de
+campanha — **não é venda orgânica**, é venda sem rastreio (quem abriu a página de
+vendas pelo e-mail ou WhatsApp cai aí). As três grafias da campanha no checkout
+(`cw1126`, `cw1125` herdada do criativo de 2025 e `classical_week_2026` do e-mail)
+são somadas como **Campanha CW26**.
 
 **Metas de venda** só aparecem quando a aba `metas_vendas` sair do marcador `1/1/1`.
 
